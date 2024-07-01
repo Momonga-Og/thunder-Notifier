@@ -1,10 +1,14 @@
 import discord
 import os
 import asyncio
+import logging
 from discord.ext import commands
 from discord import app_commands
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 intents = discord.Intents.default()
 intents.members = True
@@ -42,24 +46,27 @@ async def pm_all(interaction: discord.Interaction, message: str):
             try:
                 await member.send(message)  # Send a private message
                 sent_count += 1
+                logging.info(f'Successfully sent message to {member.display_name}')
                 await asyncio.sleep(1)  # Add a delay to respect rate limits
             except discord.Forbidden:
                 failed_count += 1  # User has DMs disabled or bot is blocked
+                logging.warning(f'Failed to send message to {member.display_name}: Forbidden')
             except discord.HTTPException as e:
                 failed_count += 1  # Log or handle errors during sending
-                print(f"Failed to send message to {member.display_name}: {e}")
+                logging.warning(f'Failed to send message to {member.display_name}: {e}')
 
         await interaction.followup.send(
             f"Sent messages to {sent_count} users. Failed to send to {failed_count} users."
         )
     except Exception as e:
         await interaction.followup.send(f"Error: {e}", ephemeral=True)
+        logging.error(f'Error in pm_all command: {e}')
 
 # Ensure the bot syncs the commands on ready
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    print(f'Logged in as {bot.user}')
+    logging.info(f'Logged in as {bot.user}')
 
 # Start the bot
 bot.run(DISCORD_BOT_TOKEN)
