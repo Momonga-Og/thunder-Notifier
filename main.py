@@ -1,5 +1,6 @@
 import discord
 import os
+import asyncio
 from discord.ext import commands
 from discord import app_commands
 
@@ -15,11 +16,9 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Use the existing command tree from the bot
 tree = bot.tree
 
-
 @tree.command(name='hello', description='Replies with Hello!')
 async def hello_command(interaction: discord.Interaction):
     await interaction.response.send_message('Hello!')
-
 
 @tree.command(name='pm_all', description='Send a private message to all users in the server')
 @app_commands.describe(message='The message to send')
@@ -43,8 +42,12 @@ async def pm_all(interaction: discord.Interaction, message: str):
             try:
                 await member.send(message)  # Send a private message
                 sent_count += 1
-            except Exception:
+                await asyncio.sleep(1)  # Add a delay to respect rate limits
+            except discord.Forbidden:
+                failed_count += 1  # User has DMs disabled or bot is blocked
+            except discord.HTTPException as e:
                 failed_count += 1  # Log or handle errors during sending
+                print(f"Failed to send message to {member.display_name}: {e}")
 
         await interaction.followup.send(
             f"Sent messages to {sent_count} users. Failed to send to {failed_count} users."
@@ -52,6 +55,11 @@ async def pm_all(interaction: discord.Interaction, message: str):
     except Exception as e:
         await interaction.followup.send(f"Error: {e}", ephemeral=True)
 
+# Ensure the bot syncs the commands on ready
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    print(f'Logged in as {bot.user}')
 
 # Start the bot
 bot.run(DISCORD_BOT_TOKEN)
